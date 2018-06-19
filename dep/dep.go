@@ -182,19 +182,23 @@ func StemcellVersion(manifest string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("read file: %s", err)
 	}
-	data := struct {
-		Stemcells []struct {
-			Version string `yaml:"version"`
-		} `yaml:"stemcells"`
-	}{}
+	data := make(utils.Yaml)
 	if err := yaml.Unmarshal(txt, &data); err != nil {
 		return "", fmt.Errorf("parse file: %s", err)
 	}
-	if len(data.Stemcells) != 1 {
-		return "", fmt.Errorf("manifest (%s) must contain 1 stemcell (not %d)", manifest, len(data.Stemcells))
-	}
+	return StemcellVersionObj(data)
+}
 
-	stemcellVersion := data.Stemcells[0].Version
+func StemcellVersionObj(data utils.Yaml) (string, error) {
+	stemcells, ok := data["stemcells"].([]interface{})
+	if !ok || len(stemcells) != 1 {
+		return "", fmt.Errorf("manifest must contain 1 stemcell (not %d)", len(stemcells))
+	}
+	stemcell, ok := stemcells[0].(utils.Yaml)
+	if !ok || stemcell["version"] == "" {
+		return "", fmt.Errorf("manifest must contain 1 stemcell version")
+	}
+	stemcellVersion := stemcell["version"].(string)
 
 	if isUploaded, err := isStemcellUploaded(stemcellVersion); err != nil {
 		return "", fmt.Errorf("is stemcell uploaded: %s", err)
